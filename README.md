@@ -116,14 +116,31 @@ This node uses the OnlyOffice Document Server API v2.0:
 
 ## Development
 
-### Building the Node
+### Local Development Setup
 
+1. **Build the node**:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+2. **Install to n8n's custom nodes directory** (default: `~/.n8n/nodes` or `$N8N_USER_FOLDER/nodes`):
+   ```bash
+   cd ~/.n8n/nodes
+   npm install /path/to/OnlyOffice-n8n
+   ```
+
+3. **Restart n8n**
+
+After making changes, rebuild and reinstall:
 ```bash
-npm install
 npm run build
+cd ~/.n8n/nodes && npm install /path/to/OnlyOffice-n8n
 ```
 
 ### Development Mode
+
+Watch for TypeScript changes:
 
 ```bash
 npm run dev

@@ -343,6 +343,33 @@ export class OnlyOffice implements INodeType {
     return [returnData];
   }
 
+  private static parseResponse(response: any): any {
+    // Handle array with JSON string as first element: ["{ ... }"]
+    if (Array.isArray(response) && response.length > 0 && typeof response[0] === 'string') {
+      try {
+        response = JSON.parse(response[0]);
+      } catch (e) {
+        return { error: 'Failed to parse JSON response', rawResponse: response };
+      }
+    }
+    
+    // Handle string response
+    if (typeof response === 'string') {
+      try {
+        response = JSON.parse(response);
+      } catch (e) {
+        return { error: 'Failed to parse JSON response', rawResponse: response };
+      }
+    }
+    
+    // Extract data from OnlyOffice API response structure
+    if (response && response.response) {
+      return response.response;
+    }
+    
+    return response;
+  }
+
   private static async executeFolderOperation(context: IExecuteFunctions, operation: string, itemIndex: number): Promise<any> {
     const credentials = await context.getCredentials('onlyOfficeApi');
     const baseUrl = `${credentials.baseUrl}/api/2.0`;
@@ -359,124 +386,15 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        // Debug: Log the response to understand its structure
-        console.log('OnlyOffice API Response Type:', typeof response);
-        console.log('OnlyOffice API Response:', JSON.stringify(response, null, 2));
-        
-        // Also return debug info in the response for immediate visibility
-        const debugInfo = {
-          responseType: typeof response,
-          responseLength: response ? (typeof response === 'string' ? response.length : Object.keys(response).length) : 'null',
-          responsePreview: response ? (typeof response === 'string' ? response.substring(0, 200) : JSON.stringify(response).substring(0, 200)) : 'null'
-        };
-        
-        // Extract the actual data from the API response
-        // OnlyOffice API typically returns data in response.folders and response.files
-        if (response && response.response) {
-          const folders = response.response.folders || [];
-          const files = response.response.files || [];
-          return [...folders, ...files];
-        }
-        
-        // Fallback: if response structure is different, try common alternatives
-        if (response && response.data) {
-          return response.data;
-        }
-        
-        // If response has folders/files directly
-        if (response && (response.folders || response.files)) {
-          const folders = response.folders || [];
-          const files = response.files || [];
-          return [...folders, ...files];
-        }
-        
-        // Handle case where response might be a string or unexpected format
-        if (typeof response === 'string') {
-          try {
-            const parsedResponse = JSON.parse(response);
-            if (parsedResponse && parsedResponse.response) {
-              const folders = parsedResponse.response.folders || [];
-              const files = parsedResponse.response.files || [];
-              return [...folders, ...files];
-            }
-            if (parsedResponse && (parsedResponse.folders || parsedResponse.files)) {
-              const folders = parsedResponse.folders || [];
-              const files = parsedResponse.files || [];
-              return [...folders, ...files];
-            }
-            return parsedResponse;
-          } catch (e) {
-            // If parsing fails, return the string as is
-            return { error: 'Failed to parse response', rawResponse: response };
-          }
-        }
-        
-        // If response is an array, handle it properly
-        if (Array.isArray(response)) {
-          // Check if the first element is a JSON string
-          if (response.length > 0 && typeof response[0] === 'string') {
-            try {
-              const parsedResponse = JSON.parse(response[0]);
-              // Extract files and folders from the parsed response
-              let extractedData = [];
-              
-              if (parsedResponse && parsedResponse.response) {
-                const files = parsedResponse.response.files || [];
-                const folders = parsedResponse.response.folders || [];
-                extractedData = [...folders, ...files];
-              } else if (parsedResponse && parsedResponse.files && parsedResponse.folders) {
-                const files = parsedResponse.files || [];
-                const folders = parsedResponse.folders || [];
-                extractedData = [...folders, ...files];
-              } else {
-                extractedData = [parsedResponse];
-              }
-              
-              return extractedData;
-            } catch (e) {
-              return [{ error: 'Failed to parse JSON response', rawResponse: response }];
-            }
-          } else {
-            // If it's not a JSON string, return the array as is
-            return response;
-          }
-        }
-        
-        // Parse the response correctly for OnlyOffice API
-        let parsedResponse;
-        
-        // If response is a string, parse it as JSON
-        if (typeof response === 'string') {
-          try {
-            parsedResponse = JSON.parse(response);
-          } catch (e) {
-            return [{ error: 'Failed to parse JSON response', rawResponse: response }];
-          }
-        } else {
-          parsedResponse = response;
-        }
-        
-        // Extract files and folders from the parsed response
-        let extractedData = [];
-        
-        if (parsedResponse && parsedResponse.response) {
-          const files = parsedResponse.response.files || [];
-          const folders = parsedResponse.response.folders || [];
-          extractedData = [...folders, ...files];
-        } else if (parsedResponse && parsedResponse.files && parsedResponse.folders) {
-          const files = parsedResponse.files || [];
-          const folders = parsedResponse.folders || [];
-          extractedData = [...folders, ...files];
-        } else {
-          extractedData = [parsedResponse];
-        }
-        
-        return extractedData;
+        const parsedResponse = OnlyOffice.parseResponse(response);
+        const folders = parsedResponse.folders || [];
+        const files = parsedResponse.files || [];
+        return [...folders, ...files];
 
       case 'create':
         const parentFolderId = context.getNodeParameter('parentFolderId', itemIndex) as string;
         const title = context.getNodeParameter('title', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const createResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -485,11 +403,12 @@ export class OnlyOffice implements INodeType {
             body: { title },
           },
         );
+        return OnlyOffice.parseResponse(createResponse);
 
       case 'rename':
         const itemId = context.getNodeParameter('itemId', itemIndex) as string;
         const newTitle = context.getNodeParameter('newTitle', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const renameResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -498,13 +417,14 @@ export class OnlyOffice implements INodeType {
             body: { title: newTitle },
           },
         );
+        return OnlyOffice.parseResponse(renameResponse);
 
       case 'move':
       case 'copy':
         const moveItemId = context.getNodeParameter('itemId', itemIndex) as string;
         const destFolderId = context.getNodeParameter('destFolderId', itemIndex) as string;
         const conflictResolveType = context.getNodeParameter('conflictResolveType', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const moveResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -518,11 +438,12 @@ export class OnlyOffice implements INodeType {
             },
           },
         );
+        return OnlyOffice.parseResponse(moveResponse);
 
       case 'delete':
         const deleteItemId = context.getNodeParameter('itemId', itemIndex) as string;
         const deleteImmediately = context.getNodeParameter('deleteImmediately', itemIndex) as boolean;
-        return await context.helpers.requestWithAuthentication.call(
+        const deleteResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -531,6 +452,7 @@ export class OnlyOffice implements INodeType {
             body: deleteImmediately ? { deleteAfter: true } : {},
           },
         );
+        return OnlyOffice.parseResponse(deleteResponse);
 
       default:
         throw new NodeOperationError(context.getNode(), `Unknown folder operation: ${operation}`);
@@ -553,125 +475,16 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        // Debug: Log the response to understand its structure
-        console.log('OnlyOffice API Response Type:', typeof response);
-        console.log('OnlyOffice API Response:', JSON.stringify(response, null, 2));
-        
-        // Also return debug info in the response for immediate visibility
-        const debugInfo = {
-          responseType: typeof response,
-          responseLength: response ? (typeof response === 'string' ? response.length : Object.keys(response).length) : 'null',
-          responsePreview: response ? (typeof response === 'string' ? response.substring(0, 200) : JSON.stringify(response).substring(0, 200)) : 'null'
-        };
-        
-        // Extract the actual data from the API response
-        // OnlyOffice API typically returns data in response.folders and response.files
-        if (response && response.response) {
-          const folders = response.response.folders || [];
-          const files = response.response.files || [];
-          return [...folders, ...files];
-        }
-        
-        // Fallback: if response structure is different, try common alternatives
-        if (response && response.data) {
-          return response.data;
-        }
-        
-        // If response has folders/files directly
-        if (response && (response.folders || response.files)) {
-          const folders = response.folders || [];
-          const files = response.files || [];
-          return [...folders, ...files];
-        }
-        
-        // Handle case where response might be a string or unexpected format
-        if (typeof response === 'string') {
-          try {
-            const parsedResponse = JSON.parse(response);
-            if (parsedResponse && parsedResponse.response) {
-              const folders = parsedResponse.response.folders || [];
-              const files = parsedResponse.response.files || [];
-              return [...folders, ...files];
-            }
-            if (parsedResponse && (parsedResponse.folders || parsedResponse.files)) {
-              const folders = parsedResponse.folders || [];
-              const files = parsedResponse.files || [];
-              return [...folders, ...files];
-            }
-            return parsedResponse;
-          } catch (e) {
-            // If parsing fails, return the string as is
-            return { error: 'Failed to parse response', rawResponse: response };
-          }
-        }
-        
-        // If response is an array, handle it properly
-        if (Array.isArray(response)) {
-          // Check if the first element is a JSON string
-          if (response.length > 0 && typeof response[0] === 'string') {
-            try {
-              const parsedResponse = JSON.parse(response[0]);
-              // Extract files and folders from the parsed response
-              let extractedData = [];
-              
-              if (parsedResponse && parsedResponse.response) {
-                const files = parsedResponse.response.files || [];
-                const folders = parsedResponse.response.folders || [];
-                extractedData = [...folders, ...files];
-              } else if (parsedResponse && parsedResponse.files && parsedResponse.folders) {
-                const files = parsedResponse.files || [];
-                const folders = parsedResponse.folders || [];
-                extractedData = [...folders, ...files];
-              } else {
-                extractedData = [parsedResponse];
-              }
-              
-              return extractedData;
-            } catch (e) {
-              return [{ error: 'Failed to parse JSON response', rawResponse: response }];
-            }
-          } else {
-            // If it's not a JSON string, return the array as is
-            return response;
-          }
-        }
-        
-        // Parse the response correctly for OnlyOffice API
-        let parsedResponse;
-        
-        // If response is a string, parse it as JSON
-        if (typeof response === 'string') {
-          try {
-            parsedResponse = JSON.parse(response);
-          } catch (e) {
-            return [{ error: 'Failed to parse JSON response', rawResponse: response }];
-          }
-        } else {
-          parsedResponse = response;
-        }
-        
-        // Extract files and folders from the parsed response
-        let extractedData = [];
-        
-        if (parsedResponse && parsedResponse.response) {
-          const files = parsedResponse.response.files || [];
-          const folders = parsedResponse.response.folders || [];
-          extractedData = [...folders, ...files];
-        } else if (parsedResponse && parsedResponse.files && parsedResponse.folders) {
-          const files = parsedResponse.files || [];
-          const folders = parsedResponse.folders || [];
-          extractedData = [...folders, ...files];
-        } else {
-          extractedData = [parsedResponse];
-        }
-        
-        return extractedData;
+        const parsedResponse = OnlyOffice.parseResponse(response);
+        const folders = parsedResponse.folders || [];
+        const files = parsedResponse.files || [];
+        return [...folders, ...files];
 
       case 'create':
         const parentFolderId = context.getNodeParameter('parentFolderId', itemIndex) as string;
         const title = context.getNodeParameter('title', itemIndex) as string;
         const fileType = context.getNodeParameter('fileType', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const createResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -683,11 +496,12 @@ export class OnlyOffice implements INodeType {
             },
           },
         );
+        return OnlyOffice.parseResponse(createResponse);
 
       case 'rename':
         const itemId = context.getNodeParameter('itemId', itemIndex) as string;
         const newTitle = context.getNodeParameter('newTitle', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const renameResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -696,13 +510,14 @@ export class OnlyOffice implements INodeType {
             body: { title: newTitle },
           },
         );
+        return OnlyOffice.parseResponse(renameResponse);
 
       case 'move':
       case 'copy':
         const moveItemId = context.getNodeParameter('itemId', itemIndex) as string;
         const destFolderId = context.getNodeParameter('destFolderId', itemIndex) as string;
         const conflictResolveType = context.getNodeParameter('conflictResolveType', itemIndex) as string;
-        return await context.helpers.requestWithAuthentication.call(
+        const moveResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -716,11 +531,12 @@ export class OnlyOffice implements INodeType {
             },
           },
         );
+        return OnlyOffice.parseResponse(moveResponse);
 
       case 'delete':
         const deleteItemId = context.getNodeParameter('itemId', itemIndex) as string;
         const deleteImmediately = context.getNodeParameter('deleteImmediately', itemIndex) as boolean;
-        return await context.helpers.requestWithAuthentication.call(
+        const deleteResponse = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
           {
@@ -729,6 +545,7 @@ export class OnlyOffice implements INodeType {
             body: { deleteAfter: deleteImmediately },
           },
         );
+        return OnlyOffice.parseResponse(deleteResponse);
 
       default:
         throw new NodeOperationError(context.getNode(), `Unknown file operation: ${operation}`);

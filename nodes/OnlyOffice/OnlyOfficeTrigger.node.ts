@@ -95,21 +95,164 @@ export class OnlyOfficeTrigger implements INodeType {
   };
 
   webhookMethods = {
-    default: {
+    setup: {
       async checkExists(this: IHookFunctions): Promise<boolean> {
-        // Setup webhook is always available
-        return true;
+        const webhookData = this.getWorkflowStaticData('node');
+        
+        if (!webhookData.webhookId) {
+          this.logger.debug('OnlyOffice Trigger - checkExists: No webhook ID found in static data');
+          return false;
+        }
+        
+        try {
+          const credentials = await this.getCredentials('onlyOfficeApi');
+          const baseUrl = credentials.baseUrl as string;
+          
+          this.logger.debug('OnlyOffice Trigger - checkExists: Checking webhook existence', {
+            webhookId: webhookData.webhookId,
+            baseUrl,
+          });
+          
+          const response = await this.helpers.httpRequest({
+            method: 'GET',
+            url: `${baseUrl}/api/2.0/settings/webhooks`,
+            headers: {
+              'Authorization': `Bearer ${credentials.token}`,
+              'Accept': 'application/json',
+            },
+          });
+          
+          const webhooks = response.response || [];
+          const exists = webhooks.some((webhook: any) => webhook.id === webhookData.webhookId);
+          
+          this.logger.debug('OnlyOffice Trigger - checkExists: Result', {
+            exists,
+            totalWebhooks: webhooks.length,
+          });
+          
+          return exists;
+        } catch (error) {
+          const err = error as any;
+          this.logger.error('OnlyOffice Trigger - checkExists: Failed to check webhook existence', {
+            error: err.message,
+            webhookId: webhookData.webhookId,
+            stack: err.stack,
+          });
+          return false;
+        }
       },
       async create(this: IHookFunctions): Promise<boolean> {
-        // Setup webhook doesn't need creation
-        return true;
+        try {
+          const webhookUrl = this.getNodeWebhookUrl('default');
+          const webhookData = this.getWorkflowStaticData('node');
+          const credentials = await this.getCredentials('onlyOfficeApi');
+          const baseUrl = credentials.baseUrl as string;
+          const apiUrl = `${baseUrl}/api/2.0/settings/webhook`;
+          
+          const requestBody = {
+            name: 'n8n Trigger Webhook',
+            uri: webhookUrl,
+            secretKey: 'n8nWebhook',
+            enabled: true,
+            ssl: false,
+            triggers: 0, // 0 = All events
+          };
+          
+          this.logger.info('OnlyOffice Trigger - create: Creating webhook', {
+            webhookUrl,
+            baseUrl,
+            apiUrl,
+            credentials: {
+              baseUrl: credentials.baseUrl,
+              hasToken: !!credentials.token,
+            },
+            requestBody,
+          });
+          
+          const response = await this.helpers.httpRequest({
+            method: 'POST',
+            url: apiUrl,
+            headers: {
+              'Authorization': `Bearer ${credentials.token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: requestBody,
+          });
+          
+          webhookData.webhookId = response.response.id;
+          
+          this.logger.info('OnlyOffice Trigger - create: Webhook created successfully', {
+            webhookId: webhookData.webhookId,
+            response: response.response,
+          });
+          
+          return true;
+        } catch (error) {
+          const err = error as any;
+          const credentials = await this.getCredentials('onlyOfficeApi');
+          const baseUrl = credentials.baseUrl as string;
+          this.logger.error('OnlyOffice Trigger - create: Failed to create webhook', {
+            error: err.message,
+            errorName: err.name,
+            statusCode: err.statusCode,
+            response: err.response,
+            cause: err.cause,
+            baseUrl: baseUrl,
+            apiUrl: `${baseUrl}/api/2.0/settings/webhook`,
+            credentialsBaseUrl: credentials.baseUrl,
+            stack: err.stack,
+          });
+          throw error;
+        }
       },
       async delete(this: IHookFunctions): Promise<boolean> {
-        // Setup webhook doesn't need deletion
+        return true;
+        const webhookData = this.getWorkflowStaticData('node');
+        
+        if (!webhookData.webhookId) {
+          this.logger.debug('OnlyOffice Trigger - delete: No webhook ID found, skipping deletion');
+          return true;
+        }
+        
+        try {
+          const credentials = await this.getCredentials('onlyOfficeApi');
+          const baseUrl = credentials.baseUrl as string;
+          
+          this.logger.info('OnlyOffice Trigger - delete: Deleting webhook', {
+            webhookId: webhookData.webhookId,
+            baseUrl,
+          });
+          
+          await this.helpers.httpRequest({
+            method: 'DELETE',
+            url: `${baseUrl}/api/2.0/settings/webhook/${webhookData.webhookId}`,
+            headers: {
+              'Authorization': `Bearer ${credentials.token}`,
+              'Accept': 'application/json',
+            },
+          });
+          
+          this.logger.info('OnlyOffice Trigger - delete: Webhook deleted successfully', {
+            webhookId: webhookData.webhookId,
+          });
+          
+          delete webhookData.webhookId;
+        } catch (error) {
+          const err = error as any;
+          this.logger.warn('OnlyOffice Trigger - delete: Failed to delete webhook (might already be deleted)', {
+            error: err.message,
+            statusCode: err.statusCode,
+            webhookId: webhookData.webhookId,
+          });
+          // Don't throw error - webhook might already be deleted
+          delete webhookData.webhookId;
+        }
+        
         return true;
       },
     },
-    setup: {
+    default: {
       async checkExists(this: IHookFunctions): Promise<boolean> {
         // Setup webhook is always available
         return true;

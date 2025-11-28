@@ -36,6 +36,8 @@ export class OnlyOfficeApi implements ICredentialType {
     properties: {
       headers: {
         Authorization: '=Bearer {{$credentials.token}}',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
     },
   };

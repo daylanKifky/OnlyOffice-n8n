@@ -272,26 +272,41 @@ export class OnlyOfficeTrigger implements INodeType {
     const req = this.getRequestObject();
     const webhookName = this.getWebhookName();
     
+    // Log request info without circular references
     this.logger.info('OnlyOffice Trigger - Incoming request', {
       method: req.method,
       url: req.url,
       webhookName,
-      headers: req.headers,
+      headers: {
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+      },
     });
 
-    const requestInfo = {
-      headers: req.headers,
+    // Handle HEAD request from OnlyOffice webhook verification
+    // This should not trigger the workflow, just return 200 OK
+    if (webhookName === 'setup' || req.method === 'HEAD') {
+      this.logger.info('OnlyOffice Trigger - HEAD request received, responding with 200 OK');
+      return {
+        webhookResponse: {
+          status: 200,
+        },
+      };
+    }
+
+    // Handle POST request with actual webhook data
+    const body = this.getBodyData();
+    
+    this.logger.info('OnlyOffice Trigger - Processing webhook event', {
       method: req.method,
-      url: req.url,
-      body: this.getBodyData(),
-    };
+      bodyKeys: Object.keys(body || {}),
+    });
 
     return {
       workflowData: [
-        this.helpers.returnJsonArray(requestInfo),
+        this.helpers.returnJsonArray([body]),
       ],
     };
-
   }
 }
 

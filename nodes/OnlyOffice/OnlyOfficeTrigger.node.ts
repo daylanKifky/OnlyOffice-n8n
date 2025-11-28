@@ -99,19 +99,21 @@ export class OnlyOfficeTrigger implements INodeType {
       async checkExists(this: IHookFunctions): Promise<boolean> {
         const webhookData = this.getWorkflowStaticData('node');
         
-        if (!webhookData.webhookId) {
-          this.logger.debug('OnlyOffice Trigger - checkExists: No webhook ID found in static data');
-          return false;
+        // If we have a webhook ID in static data, assume it exists
+        if (webhookData.webhookId) {
+          this.logger.debug('OnlyOffice Trigger - checkExists: Webhook ID found in static data', {
+            webhookId: webhookData.webhookId,
+          });
+          return true;
         }
         
+        // No webhook ID in static data, check if one exists on the server
+        this.logger.debug('OnlyOffice Trigger - checkExists: No webhook ID in static data, checking server');
+        
         try {
+          const webhookUrl = this.getNodeWebhookUrl('default');
           const credentials = await this.getCredentials('onlyOfficeApi');
           const baseUrl = credentials.baseUrl as string;
-          
-          this.logger.debug('OnlyOffice Trigger - checkExists: Checking webhook existence', {
-            webhookId: webhookData.webhookId,
-            baseUrl,
-          });
           
           const response = await this.helpers.httpRequest({
             method: 'GET',
@@ -123,20 +125,25 @@ export class OnlyOfficeTrigger implements INodeType {
           });
           
           const webhooks = response.response || [];
-          const exists = webhooks.some((webhook: any) => webhook.id === webhookData.webhookId);
+          const existing = webhooks.find((webhook: any) => webhook.uri === webhookUrl);
           
-          this.logger.debug('OnlyOffice Trigger - checkExists: Result', {
-            exists,
+          if (existing) {
+            // Found existing webhook, save its ID
+            this.logger.debug('OnlyOffice Trigger - checkExists: Found existing webhook on server', {
+              webhookId: existing.id,
+            });
+            webhookData.webhookId = existing.id;
+            return true;
+          }
+          
+          this.logger.debug('OnlyOffice Trigger - checkExists: No webhook found', {
             totalWebhooks: webhooks.length,
           });
-          
-          return exists;
+          return false;
         } catch (error) {
           const err = error as any;
           this.logger.error('OnlyOffice Trigger - checkExists: Failed to check webhook existence', {
             error: err.message,
-            webhookId: webhookData.webhookId,
-            stack: err.stack,
           });
           return false;
         }
@@ -192,16 +199,23 @@ export class OnlyOfficeTrigger implements INodeType {
           const err = error as any;
           const credentials = await this.getCredentials('onlyOfficeApi');
           const baseUrl = credentials.baseUrl as string;
+          
+          // Extract response data safely to avoid circular references
+          let responseData;
+          try {
+            responseData = typeof err.response === 'object' ? JSON.stringify(err.response) : err.response;
+          } catch {
+            responseData = 'Unable to serialize response';
+          }
+          
           this.logger.error('OnlyOffice Trigger - create: Failed to create webhook', {
             error: err.message,
             errorName: err.name,
             statusCode: err.statusCode,
-            response: err.response,
-            cause: err.cause,
+            responseData,
             baseUrl: baseUrl,
             apiUrl: `${baseUrl}/api/2.0/settings/webhook`,
             credentialsBaseUrl: credentials.baseUrl,
-            stack: err.stack,
           });
           throw error;
         }

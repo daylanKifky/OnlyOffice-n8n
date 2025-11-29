@@ -11,7 +11,7 @@ export class OnlyOfficeTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'OnlyOffice Trigger',
     name: 'onlyOfficeTrigger',
-    icon: 'file:onlyoffice.svg',
+    icon: 'file:onlyoffice_logo.svg',
     group: ['trigger'],
     version: 1,
     description: 'Triggers when files or folders are created, updated, or modified in OnlyOffice',

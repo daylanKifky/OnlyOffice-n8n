@@ -108,7 +108,7 @@ export class OnlyOfficeTrigger implements INodeType {
         }
         
         // No webhook ID in static data, check if one exists on the server
-        this.logger.debug('OnlyOffice Trigger - checkExists: No webhook ID in static data, checking server');
+        this.logger.debug('OnlyOffice Trigger - checkExists: No webhook ID in static data, checking server', webhookData);
         
         try {
           const webhookUrl = this.getNodeWebhookUrl('default');
@@ -221,7 +221,6 @@ export class OnlyOfficeTrigger implements INodeType {
         }
       },
       async delete(this: IHookFunctions): Promise<boolean> {
-        return true;
         const webhookData = this.getWorkflowStaticData('node');
         
         if (!webhookData.webhookId) {
@@ -233,7 +232,7 @@ export class OnlyOfficeTrigger implements INodeType {
           const credentials = await this.getCredentials('onlyOfficeApi');
           const baseUrl = credentials.baseUrl as string;
           
-          this.logger.info('OnlyOffice Trigger - delete: Deleting webhook', {
+          this.logger.warn('OnlyOffice Trigger - delete: Deleting webhook', {
             webhookId: webhookData.webhookId,
             baseUrl,
           });
@@ -287,7 +286,7 @@ export class OnlyOfficeTrigger implements INodeType {
     const webhookName = this.getWebhookName();
     
     // Log request info without circular references
-    this.logger.info('OnlyOffice Trigger - Incoming request', {
+    this.logger.debug('OnlyOffice Trigger - Incoming request', {
       method: req.method,
       url: req.url,
       webhookName,
@@ -300,7 +299,7 @@ export class OnlyOfficeTrigger implements INodeType {
     // Handle HEAD request from OnlyOffice webhook verification
     // This should not trigger the workflow, just return 200 OK
     if (webhookName === 'setup' || req.method === 'HEAD') {
-      this.logger.info('OnlyOffice Trigger - HEAD request received, responding with 200 OK');
+      this.logger.debug('OnlyOffice Trigger - HEAD request received, responding with 200 OK');
       return {
         webhookResponse: {
           status: 200,

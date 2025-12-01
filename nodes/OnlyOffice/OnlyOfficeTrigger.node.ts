@@ -52,6 +52,11 @@ export class OnlyOfficeTrigger implements INodeType {
         type: 'multiOptions',
         options: [
           {
+            name: 'All Events',
+            value: 'AllEvents',
+            description: 'Listen to all file and folder events',
+          },
+          {
             name: 'File Created',
             value: 'FileCreated',
           },
@@ -92,9 +97,9 @@ export class OnlyOfficeTrigger implements INodeType {
             value: 'FolderDeleted',
           },
         ],
-        default: ['FileCreated', 'FileUpdated'],
+        default: ['AllEvents'],
         required: true,
-        description: 'The events to listen for',
+        description: 'The events to listen for. Select "All Events" to listen to all file and folder events.',
       },
     ],
   };

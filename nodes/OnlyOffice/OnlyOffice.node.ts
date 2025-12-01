@@ -11,7 +11,7 @@ export class OnlyOffice implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'OnlyOffice',
     name: 'onlyOffice',
-    icon: 'file:onlyoffice.svg',
+    icon: 'file:onlyoffice_doc.svg',
     group: ['transform'],
     version: 1,
     subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',

@@ -117,7 +117,7 @@ export class OnlyOfficeTrigger implements INodeType {
           
           const response = await this.helpers.httpRequest({
             method: 'GET',
-            url: `${baseUrl}/api/2.0/settings/webhooks`,
+            url: `${baseUrl}/api/2.0/settings/webhook`,
             headers: {
               'Authorization': `Bearer ${credentials.token}`,
               'Accept': 'application/json',
@@ -125,7 +125,7 @@ export class OnlyOfficeTrigger implements INodeType {
           });
           
           const webhooks = response.response || [];
-          const existing = webhooks.find((webhook: any) => webhook.uri === webhookUrl);
+          const existing = webhooks.find((webhook: any) => webhook.configs.uri === webhookUrl);
           
           if (existing) {
             // Found existing webhook, save its ID

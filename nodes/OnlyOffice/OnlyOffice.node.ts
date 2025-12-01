@@ -7,6 +7,7 @@ import {
   NodeConnectionType,
   IBinaryData,
 } from 'n8n-workflow';
+import { parseApiKeyPermissions } from './OnlyOfficeWebhook.types';
 
 export class OnlyOffice implements INodeType {
   description: INodeTypeDescription = {
@@ -49,6 +50,10 @@ export class OnlyOffice implements INodeType {
           {
             name: 'File',
             value: 'file',
+          },
+          {
+            name: 'API Key',
+            value: 'apiKey',
           },
         ],
         default: 'folder',
@@ -347,6 +352,27 @@ export class OnlyOffice implements INodeType {
         },
         description: 'Whether to delete immediately or move to trash',
       },
+
+      // API Key Operations
+      {
+        displayName: 'Operation',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        displayOptions: {
+          show: {
+            resource: ['apiKey'],
+          },
+        },
+        options: [
+          {
+            name: 'Get Permissions',
+            value: 'getPermissions',
+            action: 'Get API key permissions',
+          },
+        ],
+        default: 'getPermissions',
+      },
     ],
   };
 
@@ -372,6 +398,8 @@ export class OnlyOffice implements INodeType {
           } else {
             responseData = result;
           }
+        } else if (resource === 'apiKey') {
+          responseData = await OnlyOffice.executeApiKeyOperation(this, operation, i);
         }
 
         const item: INodeExecutionData = { json: responseData };
@@ -886,5 +914,60 @@ export class OnlyOffice implements INodeType {
       'ppt': 'application/vnd.ms-powerpoint',
     };
     return mimeTypes[extension.toLowerCase()] || 'application/octet-stream';
+  }
+
+  private static async executeApiKeyOperation(context: IExecuteFunctions, operation: string, itemIndex: number): Promise<any> {
+    const credentials = await context.getCredentials('onlyOfficeApi');
+    const baseUrl = `${credentials.baseUrl}/api/2.0`;
+
+    switch (operation) {
+      case 'getPermissions':
+        const response = await context.helpers.requestWithAuthentication.call(
+          context,
+          'onlyOfficeApi',
+          {
+            method: 'GET',
+            url: `${baseUrl}/keys/permissions`,
+          },
+        );
+        
+        // Handle permissions response - it's a direct array of permission strings
+        let permissions: string[] = [];
+        
+        // If response is wrapped in OnlyOffice format, extract it
+        if (response && typeof response === 'object' && response.response) {
+          permissions = Array.isArray(response.response) ? response.response : [];
+        } else if (Array.isArray(response)) {
+          // Check if it's an array with JSON string as first element (OnlyOffice format)
+          if (response.length > 0 && typeof response[0] === 'string' && response[0].startsWith('{')) {
+            try {
+              const parsed = JSON.parse(response[0]);
+              permissions = parsed.response || parsed.permissions || [];
+            } catch (e) {
+              // If parsing fails, treat as direct array
+              permissions = response;
+            }
+          } else {
+            // Direct array of permission strings
+            permissions = response;
+          }
+        } else if (typeof response === 'string') {
+          try {
+            const parsed = JSON.parse(response);
+            permissions = Array.isArray(parsed) ? parsed : (parsed.response || parsed.permissions || []);
+          } catch (e) {
+            permissions = [];
+          }
+        }
+        
+        // Parse permissions into structured format
+        const parsedPermissions = parseApiKeyPermissions(permissions);
+        
+        // Return in n8n-friendly format with parsed structure
+        return parsedPermissions;
+
+      default:
+        throw new NodeOperationError(context.getNode(), `Unknown API key operation: ${operation}`);
+    }
   }
 }

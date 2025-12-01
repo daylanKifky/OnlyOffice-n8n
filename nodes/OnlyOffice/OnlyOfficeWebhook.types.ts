@@ -151,3 +151,116 @@ export function getWebhookBodyShapeWarning(body: unknown, method: string): Recor
   };
 }
 
+/**
+ * Permission action flags
+ */
+export interface PermissionActions {
+  read: boolean;
+  write: boolean;
+}
+
+/**
+ * Nested permission structure
+ * Resources can have nested sub-resources (e.g., "account.self" becomes account -> self)
+ * Using intersection type to allow both explicit properties and index signature
+ */
+export type PermissionResource = PermissionActions & {
+  [subResource: string]: PermissionResource | boolean;
+};
+
+/**
+ * API key permissions response with nested structure
+ */
+export interface OnlyOfficeApiKeyPermissionsResponse {
+  permissions: Record<string, PermissionResource>;
+  rawPermissions: string[];
+  count: number;
+}
+
+/**
+ * Parses an array of permission strings into nested structured format
+ * Example: ["*:read", "account:read", "account.self:write"] becomes:
+ * {
+ *   "*": { read: true, write: false },
+ *   "account": { read: true, write: false, "self": { read: false, write: true } }
+ * }
+ */
+export function parseApiKeyPermissions(permissions: string[]): OnlyOfficeApiKeyPermissionsResponse {
+  const result: Record<string, PermissionResource> = {};
+
+  for (const permission of permissions) {
+    // Handle wildcard permissions
+    if (permission === '*') {
+      if (!result['*']) {
+        result['*'] = { read: false, write: false };
+      }
+      // '*' without action means both read and write
+      result['*'].read = true;
+      result['*'].write = true;
+      continue;
+    }
+
+    // Parse permission format: "resource:action" or "resource.subresource:action"
+    if (permission.includes(':')) {
+      const [resourcePath, action] = permission.split(':', 2);
+      const isRead = action === 'read';
+      const isWrite = action === 'write';
+
+      // Handle wildcard resource
+      if (resourcePath === '*') {
+        if (!result['*']) {
+          result['*'] = { read: false, write: false };
+        }
+        if (isRead) result['*'].read = true;
+        if (isWrite) result['*'].write = true;
+        continue;
+      }
+
+      // Handle nested resources (e.g., "account.self")
+      const resourceParts = resourcePath.split('.');
+      let currentLevel: Record<string, PermissionResource> = result;
+
+      // Navigate/create nested structure
+      for (let i = 0; i < resourceParts.length; i++) {
+        const part = resourceParts[i];
+        const isLastPart = i === resourceParts.length - 1;
+
+        if (!currentLevel[part]) {
+          currentLevel[part] = { read: false, write: false };
+        }
+
+        if (isLastPart) {
+          // Set the action flags on the final resource
+          const resource = currentLevel[part];
+          if (isRead) resource.read = true;
+          if (isWrite) resource.write = true;
+        } else {
+          // Navigate deeper into nested structure
+          // Ensure the nested resource exists and can hold sub-resources
+          const existingResource = currentLevel[part];
+          if (!existingResource || typeof existingResource === 'boolean') {
+            currentLevel[part] = { read: false, write: false };
+          }
+          // Cast to Record to allow nested navigation
+          currentLevel = currentLevel[part] as unknown as Record<string, PermissionResource>;
+        }
+      }
+    } else {
+      // Permission without action (e.g., just "resource")
+      // Treat as both read and write
+      if (!result[permission]) {
+        result[permission] = { read: true, write: true };
+      } else {
+        result[permission].read = true;
+        result[permission].write = true;
+      }
+    }
+  }
+
+  return {
+    permissions: result,
+    rawPermissions: permissions,
+    count: permissions.length,
+  };
+}
+

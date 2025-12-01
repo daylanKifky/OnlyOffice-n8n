@@ -1,27 +1,31 @@
 # OnlyOffice n8n Node
 
-A comprehensive n8n node for integrating with OnlyOffice Document Server, providing full folder and file management capabilities.
+A comprehensive n8n node for integrating with OnlyOffice Document Server, providing Trigger events, file content fetching and file organization capabilities.
+
+![OnlyOffice](OnlyOffice_n8n_nodes.png)
 
 ## Features
 
-### Folder Operations
-- **List Folders**: List all folders you have access to
-- **Create Folder**: Create new folders in your OnlyOffice instance
-- **Rename Folder**: Rename existing folders
-- **Move/Copy Folder**: Move or copy folders to different locations
-- **Delete Folder**: Delete folders (with option for immediate deletion or trash)
+### OnlyOffice Trigger
+Triggers workflows when files or folders are created, updated, renamed, moved, copied, or deleted in OnlyOffice
 
-### File Operations
-- **List Files**: List all files within your OnlyOffice instance
-- **Create File**: Create new documents (Word, Excel, PowerPoint)
-- **Rename File**: Rename existing files
-- **Move/Copy File**: Move or copy files to different locations
-- **Delete File**: Delete files (with option for immediate deletion or trash)
-
-### Webhook Trigger
-- **OnlyOffice Trigger**: Triggers workflows when files or folders are created, updated, renamed, moved, copied, or deleted in OnlyOffice
 - Supports filtering by event types (File Created, File Updated, Folder Created, etc.)
 - Automatically manages webhook registration with OnlyOffice API
+
+### OnlyOffice Read
+Retrieve and download files and folders from your OnlyOffice instance
+
+- **List Files/Folders**: Browse contents of any folder (My Documents, Common Documents, or specific folder IDs)
+- **Download Files**: Download files in their original format or convert to PDF
+- **API Key Permissions**: Check your API token's permissions and access levels
+
+
+### OnlyOffice Organize
+- **List Files**: List all files/folders within your OnlyOffice instance
+- **Create File**: Create new documents (Word, Excel, PowerPoint) and folders
+- **Rename File**: Rename existing files/folders
+- **Move/Copy File**: Move or copy files/folders to different locations
+- **Delete File**: Delete files/folders (with option for immediate deletion or trash)
 
 ## Installation
 

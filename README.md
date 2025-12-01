@@ -18,6 +18,11 @@ A comprehensive n8n node for integrating with OnlyOffice Document Server, provid
 - **Move/Copy File**: Move or copy files to different locations
 - **Delete File**: Delete files (with option for immediate deletion or trash)
 
+### Webhook Trigger
+- **OnlyOffice Trigger**: Triggers workflows when files or folders are created, updated, renamed, moved, copied, or deleted in OnlyOffice
+- Supports filtering by event types (File Created, File Updated, Folder Created, etc.)
+- Automatically manages webhook registration with OnlyOffice API
+
 ## Installation
 
 ### Self-Hosted n8n
@@ -79,6 +84,13 @@ A comprehensive n8n node for integrating with OnlyOffice Document Server, provid
 4. Set **Destination Folder ID** to the target folder ID
 5. Choose **Conflict Resolution** strategy
 
+### Using the Webhook Trigger
+1. Add the **OnlyOffice Trigger** node to your workflow
+2. Select the **Events** you want to listen for (e.g., File Created, File Updated)
+3. Activate the workflow - the webhook will be automatically registered with OnlyOffice
+4. The workflow will trigger whenever the selected events occur in your OnlyOffice instance
+5. Access webhook data in subsequent nodes using `$json.event.trigger` and `$json.payload.title`
+
 ## Folder IDs
 
 - `@my` - My Documents folder
@@ -113,6 +125,47 @@ This node uses the OnlyOffice Document Server API v2.0:
 - `PUT /api/2.0/files/fileops/copy` - Copy items
 - `DELETE /api/2.0/files/folder/{itemId}` - Delete folder
 - `DELETE /api/2.0/files/file/{itemId}` - Delete file
+- `GET /api/2.0/settings/webhook` - List webhooks
+- `POST /api/2.0/settings/webhook` - Create webhook
+- `DELETE /api/2.0/settings/webhook/{webhookId}` - Delete webhook
+
+## Webhook Payload Structure
+
+The OnlyOffice Trigger node receives webhook payloads with the following structure:
+
+```typescript
+{
+  event: {
+    id: number;
+    createOn: string;
+    createBy: string;
+    trigger: string;        // e.g., "file.updated", "file.created"
+    triggerId: number;
+  },
+  payload: {
+    id: number;
+    parentId: number;
+    folderIdDisplay: number;
+    rootId: number;
+    title: string;          // File or folder name
+    createBy: string;
+    modifiedBy: string;
+    createOn: string;
+    modifiedOn: string;
+    rootFolderType: number;
+    rootCreateBy: string;
+    fileEntryType: number;
+  },
+  webhook: {
+    id: number;
+    name: string;
+    url: string;
+    triggers: string[];
+  }
+}
+```
+
+Type definitions and validation utilities are available in `nodes/OnlyOffice/OnlyOfficeWebhook.types.ts`.
 
 ## Development
 
@@ -152,6 +205,21 @@ npm run dev
 npm run lint
 npm run lintfix
 ```
+
+### Project Structure
+
+```
+nodes/OnlyOffice/
+├── OnlyOffice.node.ts              # Main node for file/folder operations
+├── OnlyOfficeTrigger.node.ts       # Webhook trigger node
+├── OnlyOfficeWebhook.types.ts      # TypeScript types and validation utilities
+└── onlyoffice.svg                  # Node icon
+```
+
+The `OnlyOfficeWebhook.types.ts` file contains:
+- TypeScript interfaces for webhook payloads
+- Type guard functions for runtime validation
+- Helper functions for safely extracting webhook data
 
 ## License
 

@@ -5,7 +5,12 @@ import {
   INodeType,
   INodeTypeDescription,
   NodeConnectionType,
+  IDataObject,
 } from 'n8n-workflow';
+import {
+  isOnlyOfficeWebhookBody,
+  getWebhookBodyShapeWarning,
+} from './OnlyOfficeWebhook.types';
 
 export class OnlyOfficeTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -310,14 +315,21 @@ export class OnlyOfficeTrigger implements INodeType {
     // Handle POST request with actual webhook data
     const body = this.getBodyData();
     
-    this.logger.info('OnlyOffice Trigger - Processing webhook event', {
-      method: req.method,
-      bodyKeys: Object.keys(body || {}),
-    });
+    // Validate request body shape using type guard
+    if (!isOnlyOfficeWebhookBody(body)) {
+      this.logger.warn('OnlyOffice Trigger - Unexpected webhook body shape', getWebhookBodyShapeWarning(body, req.method));
+    } else {
+      // TypeScript now knows body is OnlyOfficeWebhookBody
+      this.logger.info('OnlyOffice Trigger - Processing webhook event', {
+        method: req.method,
+        eventTrigger: body.event.trigger,
+        payloadTitle: body.payload.title,
+      });
+    }
 
     return {
       workflowData: [
-        this.helpers.returnJsonArray([body]),
+        this.helpers.returnJsonArray([body as IDataObject]),
       ],
     };
   }

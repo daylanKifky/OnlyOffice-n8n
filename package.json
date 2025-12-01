@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-onlyoffice",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "n8n community node for OnlyOffice DocSpace integration - manage files, folders, and documents in your OnlyOffice workspace",
   "keywords": [
     "n8n-community-node-package",
@@ -44,7 +44,9 @@
       "dist/credentials/OnlyOfficeApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/OnlyOffice/OnlyOffice.node.js"
+      "dist/nodes/OnlyOffice/OnlyOfficeRead.node.js",
+      "dist/nodes/OnlyOffice/onlyOfficeOrganize.node.js",
+      "dist/nodes/OnlyOffice/OnlyOfficeTrigger.node.js"
     ]
   },
   "devDependencies": {

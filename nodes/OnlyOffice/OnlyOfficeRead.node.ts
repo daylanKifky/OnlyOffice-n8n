@@ -8,18 +8,19 @@ import {
   IBinaryData,
 } from 'n8n-workflow';
 import { parseApiKeyPermissions } from './OnlyOfficeWebhook.types';
+import { validatePermissions, getApiKeyPermissions, getPermissionErrorMessage } from './OnlyOfficePermissions.helper';
 
-export class OnlyOffice implements INodeType {
+export class OnlyOfficeRead implements INodeType {
   description: INodeTypeDescription = {
-    displayName: 'OnlyOffice',
-    name: 'onlyOffice',
+    displayName: 'OnlyOffice Read',
+    name: 'onlyOfficeRead',
     icon: 'file:onlyoffice_doc.svg',
     group: ['transform'],
     version: 1,
     subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-    description: 'Interact with OnlyOffice files and folders',
+    description: 'Read operations for OnlyOffice files and folders',
     defaults: {
-      name: 'OnlyOffice',
+      name: 'OnlyOffice Read',
     },
     inputs: [NodeConnectionType.Main],
     outputs: [NodeConnectionType.Main],
@@ -58,8 +59,6 @@ export class OnlyOffice implements INodeType {
         ],
         default: 'folder',
       },
-
-      // Folder Operations
       {
         displayName: 'Operation',
         name: 'operation',
@@ -67,96 +66,47 @@ export class OnlyOffice implements INodeType {
         noDataExpression: true,
         displayOptions: {
           show: {
-            resource: ['folder'],
+            resource: ['folder', 'file'],
           },
         },
         options: [
           {
             name: 'List',
             value: 'list',
-            action: 'List folders',
-          },
-          {
-            name: 'Create',
-            value: 'create',
-            action: 'Create folder',
-          },
-          {
-            name: 'Rename',
-            value: 'rename',
-            action: 'Rename folder',
-          },
-          {
-            name: 'Move',
-            value: 'move',
-            action: 'Move folder',
-          },
-          {
-            name: 'Copy',
-            value: 'copy',
-            action: 'Copy folder',
-          },
-          {
-            name: 'Delete',
-            value: 'delete',
-            action: 'Delete folder',
-          },
-        ],
-        default: 'list',
-      },
-
-      // File Operations
-      {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
-        noDataExpression: true,
-        displayOptions: {
-          show: {
-            resource: ['file'],
-          },
-        },
-        options: [
-          {
-            name: 'List',
-            value: 'list',
-            action: 'List files',
+            action: 'List items',
           },
           {
             name: 'Get',
             value: 'get',
             action: 'Get file contents',
-          },
-          {
-            name: 'Create',
-            value: 'create',
-            action: 'Create file',
-          },
-          {
-            name: 'Rename',
-            value: 'rename',
-            action: 'Rename file',
-          },
-          {
-            name: 'Move',
-            value: 'move',
-            action: 'Move file',
-          },
-          {
-            name: 'Copy',
-            value: 'copy',
-            action: 'Copy file',
-          },
-          {
-            name: 'Delete',
-            value: 'delete',
-            action: 'Delete file',
+            displayOptions: {
+              show: {
+                resource: ['file'],
+              },
+            },
           },
         ],
         default: 'list',
       },
-
-      // List Operations - Folder ID
+      {
+        displayName: 'Operation',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        displayOptions: {
+          show: {
+            resource: ['apiKey'],
+          },
+        },
+        options: [
+          {
+            name: 'Get Permissions',
+            value: 'getPermissions',
+            action: 'Get API key permissions',
+          },
+        ],
+        default: 'getPermissions',
+      },
       {
         displayName: 'Folder ID',
         name: 'folderId',
@@ -170,66 +120,6 @@ export class OnlyOffice implements INodeType {
         },
         description: 'ID of the folder to list contents from. Use @my for My Documents, @common for Common Documents.',
       },
-
-      // Create Operations
-      {
-        displayName: 'Parent Folder ID',
-        name: 'parentFolderId',
-        type: 'string',
-        default: '@my',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['create'],
-          },
-        },
-        description: 'ID of the parent folder where the new item will be created',
-      },
-      {
-        displayName: 'Title',
-        name: 'title',
-        type: 'string',
-        default: '',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['create'],
-          },
-        },
-        description: 'Name of the new folder or file',
-      },
-
-      // File Type for Create File
-      {
-        displayName: 'File Type',
-        name: 'fileType',
-        type: 'options',
-        options: [
-          {
-            name: 'Document (.docx)',
-            value: 'docx',
-          },
-          {
-            name: 'Spreadsheet (.xlsx)',
-            value: 'xlsx',
-          },
-          {
-            name: 'Presentation (.pptx)',
-            value: 'pptx',
-          },
-        ],
-        default: 'docx',
-        required: true,
-        displayOptions: {
-          show: {
-            resource: ['file'],
-            operation: ['create'],
-          },
-        },
-        description: 'Type of file to create',
-      },
-
-      // Operations requiring Item ID
       {
         displayName: 'Item ID',
         name: 'itemId',
@@ -238,13 +128,11 @@ export class OnlyOffice implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            operation: ['get', 'rename', 'move', 'copy', 'delete'],
+            operation: ['get'],
           },
         },
-        description: 'ID of the folder or file to operate on',
+        description: 'ID of the file to download',
       },
-
-      // Get Operation Options
       {
         displayName: 'Output Format',
         name: 'outputFormat',
@@ -282,103 +170,32 @@ export class OnlyOffice implements INodeType {
         },
         description: 'Name of the binary property to store the file data',
       },
-
-      // Rename Operation
-      {
-        displayName: 'New Title',
-        name: 'newTitle',
-        type: 'string',
-        default: '',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['rename'],
-          },
-        },
-        description: 'New name for the folder or file',
-      },
-
-      // Move/Copy Operations
-      {
-        displayName: 'Destination Folder ID',
-        name: 'destFolderId',
-        type: 'string',
-        default: '',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['move', 'copy'],
-          },
-        },
-        description: 'ID of the destination folder',
-      },
-      {
-        displayName: 'Conflict Resolution',
-        name: 'conflictResolveType',
-        type: 'options',
-        options: [
-          {
-            name: 'Skip',
-            value: 'Skip',
-          },
-          {
-            name: 'Overwrite',
-            value: 'Overwrite',
-          },
-          {
-            name: 'Duplicate',
-            value: 'Duplicate',
-          },
-        ],
-        default: 'Skip',
-        displayOptions: {
-          show: {
-            operation: ['move', 'copy'],
-          },
-        },
-        description: 'How to handle conflicts when moving or copying',
-      },
-
-      // Delete Options
-      {
-        displayName: 'Delete Immediately',
-        name: 'deleteImmediately',
-        type: 'boolean',
-        default: false,
-        displayOptions: {
-          show: {
-            operation: ['delete'],
-          },
-        },
-        description: 'Whether to delete immediately or move to trash',
-      },
-
-      // API Key Operations
-      {
-        displayName: 'Operation',
-        name: 'operation',
-        type: 'options',
-        noDataExpression: true,
-        displayOptions: {
-          show: {
-            resource: ['apiKey'],
-          },
-        },
-        options: [
-          {
-            name: 'Get Permissions',
-            value: 'getPermissions',
-            action: 'Get API key permissions',
-          },
-        ],
-        default: 'getPermissions',
-      },
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
+
+    // Validate permissions before executing (skip for API key operations)
+    const resource = this.getNodeParameter('resource', 0) as string;
+    if (resource !== 'apiKey') {
+      try {
+        await validatePermissions(
+          this,
+          resource === 'file' ? 'files' : 'folders',
+          'read'
+        );
+      } catch (error) {
+        const permissions = await getApiKeyPermissions(this).catch(() => ({}));
+        const errorMessage = getPermissionErrorMessage(
+          resource === 'file' ? 'files' : 'folders',
+          'read',
+          permissions
+        );
+        throw new NodeOperationError(this.getNode(), errorMessage);
+      }
+    }
 
     for (let i = 0; i < items.length; i++) {
       try {
@@ -389,9 +206,9 @@ export class OnlyOffice implements INodeType {
         let binaryData: { [key: string]: IBinaryData } | undefined;
 
         if (resource === 'folder') {
-          responseData = await OnlyOffice.executeFolderOperation(this, operation, i);
+          responseData = await OnlyOfficeRead.executeFolderOperation(this, operation, i);
         } else if (resource === 'file') {
-          const result = await OnlyOffice.executeFileOperation(this, operation, i);
+          const result = await OnlyOfficeRead.executeFileOperation(this, operation, i);
           if (operation === 'get' && result.binary) {
             responseData = result.data;
             binaryData = result.binary;
@@ -399,7 +216,7 @@ export class OnlyOffice implements INodeType {
             responseData = result;
           }
         } else if (resource === 'apiKey') {
-          responseData = await OnlyOffice.executeApiKeyOperation(this, operation, i);
+          responseData = await OnlyOfficeRead.executeApiKeyOperation(this, operation, i);
         }
 
         const item: INodeExecutionData = { json: responseData };
@@ -429,7 +246,6 @@ export class OnlyOffice implements INodeType {
   }
 
   private static parseResponse(response: any): any {
-    // Handle array with JSON string as first element: ["{ ... }"]
     if (Array.isArray(response) && response.length > 0 && typeof response[0] === 'string') {
       try {
         response = JSON.parse(response[0]);
@@ -438,7 +254,6 @@ export class OnlyOffice implements INodeType {
       }
     }
     
-    // Handle string response
     if (typeof response === 'string') {
       try {
         response = JSON.parse(response);
@@ -447,7 +262,6 @@ export class OnlyOffice implements INodeType {
       }
     }
     
-    // Extract data from OnlyOffice API response structure
     if (response && response.response) {
       return response.response;
     }
@@ -471,73 +285,10 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        const parsedResponse = OnlyOffice.parseResponse(response);
+        const parsedResponse = OnlyOfficeRead.parseResponse(response);
         const folders = parsedResponse.folders || [];
         const files = parsedResponse.files || [];
         return [...folders, ...files];
-
-      case 'create':
-        const parentFolderId = context.getNodeParameter('parentFolderId', itemIndex) as string;
-        const title = context.getNodeParameter('title', itemIndex) as string;
-        const createResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'POST',
-            url: `${baseUrl}/files/folder/${parentFolderId}`,
-            body: { title },
-          },
-        );
-        return OnlyOffice.parseResponse(createResponse);
-
-      case 'rename':
-        const itemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const newTitle = context.getNodeParameter('newTitle', itemIndex) as string;
-        const renameResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'PUT',
-            url: `${baseUrl}/files/folder/${itemId}`,
-            body: { title: newTitle },
-          },
-        );
-        return OnlyOffice.parseResponse(renameResponse);
-
-      case 'move':
-      case 'copy':
-        const moveItemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const destFolderId = context.getNodeParameter('destFolderId', itemIndex) as string;
-        const conflictResolveType = context.getNodeParameter('conflictResolveType', itemIndex) as string;
-        const moveResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'PUT',
-            url: `${baseUrl}/files/fileops/${operation}`,
-            body: {
-              folderIds: [moveItemId],
-              fileIds: [],
-              destFolderId,
-              conflictResolveType,
-            },
-          },
-        );
-        return OnlyOffice.parseResponse(moveResponse);
-
-      case 'delete':
-        const deleteItemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const deleteImmediately = context.getNodeParameter('deleteImmediately', itemIndex) as boolean;
-        const deleteResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'DELETE',
-            url: `${baseUrl}/files/folder/${deleteItemId}`,
-            body: deleteImmediately ? { deleteAfter: true } : {},
-          },
-        );
-        return OnlyOffice.parseResponse(deleteResponse);
 
       default:
         throw new NodeOperationError(context.getNode(), `Unknown folder operation: ${operation}`);
@@ -560,7 +311,7 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        const parsedResponse = OnlyOffice.parseResponse(response);
+        const parsedResponse = OnlyOfficeRead.parseResponse(response);
         const folders = parsedResponse.folders || [];
         const files = parsedResponse.files || [];
         return [...folders, ...files];
@@ -577,11 +328,6 @@ export class OnlyOffice implements INodeType {
           baseUrl,
         });
         
-        // Get file metadata to determine file extension
-        context.logger.debug('OnlyOffice Get - Fetching file metadata', {
-          url: `${baseUrl}/files/file/${fileId}`,
-        });
-        
         const fileInfo = await context.helpers.requestWithAuthentication.call(
           context,
           'onlyOfficeApi',
@@ -595,7 +341,7 @@ export class OnlyOffice implements INodeType {
           rawResponse: typeof fileInfo === 'string' ? fileInfo.substring(0, 200) : fileInfo,
         });
         
-        const fileData = OnlyOffice.parseResponse(fileInfo);
+        const fileData = OnlyOfficeRead.parseResponse(fileInfo);
         const fileName = fileData.title || `file_${fileId}`;
         const fileExtension = outputFormat === 'pdf' ? 'pdf' : fileName.split('.').pop() || 'bin';
         
@@ -609,7 +355,6 @@ export class OnlyOffice implements INodeType {
           },
         });
         
-        // Get presigned URI for file download
         const presignedUrl = `${baseUrl}/files/file/${fileId}/presigned`;
         context.logger.debug('OnlyOffice Get - Requesting presigned URI', {
           url: presignedUrl,
@@ -624,7 +369,6 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        // Safely serialize response for logging (avoid circular references)
         let safeRawResponse: string;
         try {
           safeRawResponse = typeof presignedResponse === 'string' 
@@ -638,9 +382,8 @@ export class OnlyOffice implements INodeType {
           rawResponse: safeRawResponse,
         });
         
-        const presignedData = OnlyOffice.parseResponse(presignedResponse);
+        const presignedData = OnlyOfficeRead.parseResponse(presignedResponse);
         
-        // Safely serialize presignedData for logging
         let safePresignedData: any;
         try {
           if (typeof presignedData === 'object' && presignedData !== null) {
@@ -665,13 +408,10 @@ export class OnlyOffice implements INodeType {
           keys: typeof presignedData === 'object' && presignedData !== null ? Object.keys(presignedData) : null,
         });
         
-        // Extract download URL from presigned response
-        // The response might be a string URI, or an object with uri/url/token properties
         let downloadUrl: string;
         if (typeof presignedData === 'string') {
           downloadUrl = presignedData;
         } else if (presignedData && typeof presignedData === 'object') {
-          // Try common property names for the URI first
           if (presignedData.uri && typeof presignedData.uri === 'string') {
             downloadUrl = presignedData.uri;
           } else if (presignedData.url && typeof presignedData.url === 'string') {
@@ -679,8 +419,6 @@ export class OnlyOffice implements INodeType {
           } else if (presignedData.downloadUrl && typeof presignedData.downloadUrl === 'string') {
             downloadUrl = presignedData.downloadUrl;
           } else if (presignedData.token && typeof presignedData.token === 'string') {
-            // Token needs to be used with filehandler endpoint
-            // Construct URL using the base URL without /api/2.0
             const baseUrlWithoutApi = baseUrl.replace('/api/2.0', '');
             downloadUrl = `${baseUrlWithoutApi}/filehandler.ashx?action=stream&fileid=${fileId}&token=${presignedData.token}`;
           } else {
@@ -709,8 +447,6 @@ export class OnlyOffice implements INodeType {
           hasToken: downloadUrl.includes('token'),
         });
         
-        // Download file using presigned URI
-        // Some OnlyOffice instances require Authorization header even for presigned URLs
         context.logger.debug('OnlyOffice Get - Downloading file from presigned URI', {
           downloadUrl: downloadUrl.substring(0, 100) + '...',
           hasStreamAuth: downloadUrl.includes('stream_auth'),
@@ -732,7 +468,6 @@ export class OnlyOffice implements INodeType {
             isArrayBuffer: downloadResponse instanceof ArrayBuffer,
           });
           
-          // Convert arraybuffer to base64 for n8n binary data
           const buffer = Buffer.from(downloadResponse as ArrayBuffer);
           const base64Data = buffer.toString('base64');
           const fileSizeBytes = buffer.length;
@@ -756,7 +491,7 @@ export class OnlyOffice implements INodeType {
             binary: {
               [binaryPropertyName]: {
                 data: base64Data,
-                mimeType: OnlyOffice.getMimeType(fileExtension),
+                mimeType: OnlyOfficeRead.getMimeType(fileExtension),
                 fileName: outputFormat === 'pdf' ? fileName.replace(/\.[^.]+$/, '.pdf') : fileName,
               },
             },
@@ -768,7 +503,6 @@ export class OnlyOffice implements INodeType {
             downloadUrl: downloadUrl.substring(0, 150) + '...',
           });
           
-          // If 403, try without Authorization header (some presigned URLs don't need it)
           if (downloadError.statusCode === 403) {
             context.logger.debug('OnlyOffice Get - Retrying download without Authorization header');
             try {
@@ -798,7 +532,7 @@ export class OnlyOffice implements INodeType {
                 binary: {
                   [binaryPropertyName]: {
                     data: base64Data,
-                    mimeType: OnlyOffice.getMimeType(fileExtension),
+                    mimeType: OnlyOfficeRead.getMimeType(fileExtension),
                     fileName: outputFormat === 'pdf' ? fileName.replace(/\.[^.]+$/, '.pdf') : fileName,
                   },
                 },
@@ -817,89 +551,8 @@ export class OnlyOffice implements INodeType {
           );
         }
 
-      case 'create':
-        const parentFolderId = context.getNodeParameter('parentFolderId', itemIndex) as string;
-        const title = context.getNodeParameter('title', itemIndex) as string;
-        const fileType = context.getNodeParameter('fileType', itemIndex) as string;
-        const createResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'POST',
-            url: `${baseUrl}/files/${parentFolderId}/file`,
-            body: { 
-              title: `${title}.${fileType}`,
-              templateId: OnlyOffice.getTemplateId(fileType),
-            },
-          },
-        );
-        return OnlyOffice.parseResponse(createResponse);
-
-      case 'rename':
-        const itemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const newTitle = context.getNodeParameter('newTitle', itemIndex) as string;
-        const renameResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'PUT',
-            url: `${baseUrl}/files/file/${itemId}`,
-            body: { title: newTitle },
-          },
-        );
-        return OnlyOffice.parseResponse(renameResponse);
-
-      case 'move':
-      case 'copy':
-        const moveItemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const destFolderId = context.getNodeParameter('destFolderId', itemIndex) as string;
-        const conflictResolveType = context.getNodeParameter('conflictResolveType', itemIndex) as string;
-        const moveResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'PUT',
-            url: `${baseUrl}/files/fileops/${operation}`,
-            body: {
-              folderIds: [],
-              fileIds: [moveItemId],
-              destFolderId,
-              conflictResolveType,
-            },
-          },
-        );
-        return OnlyOffice.parseResponse(moveResponse);
-
-      case 'delete':
-        const deleteItemId = context.getNodeParameter('itemId', itemIndex) as string;
-        const deleteImmediately = context.getNodeParameter('deleteImmediately', itemIndex) as boolean;
-        const deleteResponse = await context.helpers.requestWithAuthentication.call(
-          context,
-          'onlyOfficeApi',
-          {
-            method: 'DELETE',
-            url: `${baseUrl}/files/file/${deleteItemId}`,
-            body: { deleteAfter: deleteImmediately },
-          },
-        );
-        return OnlyOffice.parseResponse(deleteResponse);
-
       default:
         throw new NodeOperationError(context.getNode(), `Unknown file operation: ${operation}`);
-    }
-  }
-
-  private static getTemplateId(fileType: string): number {
-    // These are standard OnlyOffice template IDs
-    switch (fileType) {
-      case 'docx':
-        return 1;
-      case 'xlsx':
-        return 2;
-      case 'pptx':
-        return 3;
-      default:
-        return 1;
     }
   }
 
@@ -931,24 +584,19 @@ export class OnlyOffice implements INodeType {
           },
         );
         
-        // Handle permissions response - it's a direct array of permission strings
         let permissions: string[] = [];
         
-        // If response is wrapped in OnlyOffice format, extract it
         if (response && typeof response === 'object' && response.response) {
           permissions = Array.isArray(response.response) ? response.response : [];
         } else if (Array.isArray(response)) {
-          // Check if it's an array with JSON string as first element (OnlyOffice format)
           if (response.length > 0 && typeof response[0] === 'string' && response[0].startsWith('{')) {
             try {
               const parsed = JSON.parse(response[0]);
               permissions = parsed.response || parsed.permissions || [];
             } catch (e) {
-              // If parsing fails, treat as direct array
               permissions = response;
             }
           } else {
-            // Direct array of permission strings
             permissions = response;
           }
         } else if (typeof response === 'string') {
@@ -960,10 +608,7 @@ export class OnlyOffice implements INodeType {
           }
         }
         
-        // Parse permissions into structured format
         const parsedPermissions = parseApiKeyPermissions(permissions);
-        
-        // Return in n8n-friendly format with parsed structure
         return parsedPermissions;
 
       default:
@@ -971,3 +616,4 @@ export class OnlyOffice implements INodeType {
     }
   }
 }
+

@@ -1,8 +1,8 @@
 const { src, dest } = require('gulp');
 
 function buildIcons() {
-  return src('nodes/**/*.svg')
-    .pipe(dest('dist/icons'))
+  return src('nodes/OnlyOffice/*.svg')
+    .pipe(dest('dist/icons/OnlyOffice'))
     .pipe(dest('dist/nodes/OnlyOffice'));
 }
 

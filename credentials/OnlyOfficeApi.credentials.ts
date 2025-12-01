@@ -2,6 +2,7 @@ import {
   IAuthenticateGeneric,
   ICredentialType,
   INodeProperties,
+  ICredentialTestRequest,
 } from 'n8n-workflow';
 
 export class OnlyOfficeApi implements ICredentialType {
@@ -36,7 +37,27 @@ export class OnlyOfficeApi implements ICredentialType {
     properties: {
       headers: {
         Authorization: '=Bearer {{$credentials.token}}',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
       },
     },
+  };
+
+  test: ICredentialTestRequest = {
+    request: {
+      baseURL: '={{$credentials.baseUrl}}',
+      url: '/api/2.0/keys/permissions',
+      method: 'GET',
+    },
+    rules: [
+      {
+        type: 'responseSuccessBody',
+        properties: {
+          message: 'Connection successful!',
+          key: '',
+          value: '',
+        },
+      },
+    ],
   };
 }

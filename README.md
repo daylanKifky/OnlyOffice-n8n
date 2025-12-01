@@ -1,22 +1,31 @@
 # OnlyOffice n8n Node
 
-A comprehensive n8n node for integrating with OnlyOffice Document Server, providing full folder and file management capabilities.
+A comprehensive n8n node for integrating with OnlyOffice Document Server, providing Trigger events, file content fetching and file organization capabilities.
+
+![OnlyOffice](OnlyOffice_n8n_nodes.png)
 
 ## Features
 
-### Folder Operations
-- **List Folders**: List all folders you have access to
-- **Create Folder**: Create new folders in your OnlyOffice instance
-- **Rename Folder**: Rename existing folders
-- **Move/Copy Folder**: Move or copy folders to different locations
-- **Delete Folder**: Delete folders (with option for immediate deletion or trash)
+### OnlyOffice Trigger
+Triggers workflows when files or folders are created, updated, renamed, moved, copied, or deleted in OnlyOffice
 
-### File Operations
-- **List Files**: List all files within your OnlyOffice instance
-- **Create File**: Create new documents (Word, Excel, PowerPoint)
-- **Rename File**: Rename existing files
-- **Move/Copy File**: Move or copy files to different locations
-- **Delete File**: Delete files (with option for immediate deletion or trash)
+- Supports filtering by event types (File Created, File Updated, Folder Created, etc.)
+- Automatically manages webhook registration with OnlyOffice API
+
+### OnlyOffice Read
+Retrieve and download files and folders from your OnlyOffice instance
+
+- **List Files/Folders**: Browse contents of any folder (My Documents, Common Documents, or specific folder IDs)
+- **Download Files**: Download files in their original format or convert to PDF
+- **API Key Permissions**: Check your API token's permissions and access levels
+
+
+### OnlyOffice Organize
+- **List Files**: List all files/folders within your OnlyOffice instance
+- **Create File**: Create new documents (Word, Excel, PowerPoint) and folders
+- **Rename File**: Rename existing files/folders
+- **Move/Copy File**: Move or copy files/folders to different locations
+- **Delete File**: Delete files/folders (with option for immediate deletion or trash)
 
 ## Installation
 
@@ -79,6 +88,13 @@ A comprehensive n8n node for integrating with OnlyOffice Document Server, provid
 4. Set **Destination Folder ID** to the target folder ID
 5. Choose **Conflict Resolution** strategy
 
+### Using the Webhook Trigger
+1. Add the **OnlyOffice Trigger** node to your workflow
+2. Select the **Events** you want to listen for (e.g., File Created, File Updated)
+3. Activate the workflow - the webhook will be automatically registered with OnlyOffice
+4. The workflow will trigger whenever the selected events occur in your OnlyOffice instance
+5. Access webhook data in subsequent nodes using `$json.event.trigger` and `$json.payload.title`
+
 ## Folder IDs
 
 - `@my` - My Documents folder
@@ -113,17 +129,75 @@ This node uses the OnlyOffice Document Server API v2.0:
 - `PUT /api/2.0/files/fileops/copy` - Copy items
 - `DELETE /api/2.0/files/folder/{itemId}` - Delete folder
 - `DELETE /api/2.0/files/file/{itemId}` - Delete file
+- `GET /api/2.0/settings/webhook` - List webhooks
+- `POST /api/2.0/settings/webhook` - Create webhook
+- `DELETE /api/2.0/settings/webhook/{webhookId}` - Delete webhook
+
+## Webhook Payload Structure
+
+The OnlyOffice Trigger node receives webhook payloads with the following structure:
+
+```typescript
+{
+  event: {
+    id: number;
+    createOn: string;
+    createBy: string;
+    trigger: string;        // e.g., "file.updated", "file.created"
+    triggerId: number;
+  },
+  payload: {
+    id: number;
+    parentId: number;
+    folderIdDisplay: number;
+    rootId: number;
+    title: string;          // File or folder name
+    createBy: string;
+    modifiedBy: string;
+    createOn: string;
+    modifiedOn: string;
+    rootFolderType: number;
+    rootCreateBy: string;
+    fileEntryType: number;
+  },
+  webhook: {
+    id: number;
+    name: string;
+    url: string;
+    triggers: string[];
+  }
+}
+```
+
+Type definitions and validation utilities are available in `nodes/OnlyOffice/OnlyOfficeWebhook.types.ts`.
 
 ## Development
 
-### Building the Node
+### Local Development Setup
 
+1. **Build the node**:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+2. **Install to n8n's custom nodes directory** (default: `~/.n8n/nodes` or `$N8N_USER_FOLDER/nodes`):
+   ```bash
+   cd ~/.n8n/nodes
+   npm install /path/to/OnlyOffice-n8n
+   ```
+
+3. **Restart n8n**
+
+After making changes, rebuild and reinstall:
 ```bash
-npm install
 npm run build
+cd ~/.n8n/nodes && npm install /path/to/OnlyOffice-n8n
 ```
 
 ### Development Mode
+
+Watch for TypeScript changes:
 
 ```bash
 npm run dev
@@ -135,6 +209,21 @@ npm run dev
 npm run lint
 npm run lintfix
 ```
+
+### Project Structure
+
+```
+nodes/OnlyOffice/
+├── OnlyOffice.node.ts              # Main node for file/folder operations
+├── OnlyOfficeTrigger.node.ts       # Webhook trigger node
+├── OnlyOfficeWebhook.types.ts      # TypeScript types and validation utilities
+└── onlyoffice.svg                  # Node icon
+```
+
+The `OnlyOfficeWebhook.types.ts` file contains:
+- TypeScript interfaces for webhook payloads
+- Type guard functions for runtime validation
+- Helper functions for safely extracting webhook data
 
 ## License
 

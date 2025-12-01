@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="60"
+   height="60"
+   viewBox="0 0 60 60"
+   fill="none"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="onlyoffice.svg"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="7.025"
+     inkscape:cx="11.814947"
+     inkscape:cy="53.16726"
+     inkscape:window-width="1920"
+     inkscape:window-height="1030"
+     inkscape:window-x="0"
+     inkscape:window-y="26"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g9" />
+  <g
+     id="g9"
+     transform="matrix(1.775463,0,0,1.775463,-50.089875,3.399046)">
+    <g
+       id="g10"
+       transform="matrix(1.0853433,0,0,1.0853433,-3.6049539,-0.21414437)">
+      <path
+         class="st0"
+         d="m 42.883719,27.689235 -12.5,-5.8 c -1.1,-0.5 -1.1,-1.3 0,-1.7 l 4.4,-2 8.1,3.8 c 1.1,0.5 2.8,0.5 3.8,0 l 8.1,-3.8 4.4,2 c 1.1,0.5 1.1,1.3 0,1.7 l -12.5,5.8 c -1,0.4 -2.7,0.4 -3.8,0 z"
+         id="path1-3"
+         style="clip-rule:evenodd;fill:#ff6f3d;fill-rule:evenodd" />
+      <path
+         class="st1"
+         d="m 42.883719,20.589235 -12.5,-5.8 c -1.1,-0.5 -1.1,-1.3 0,-1.7 l 4.3,-2 8.3,3.8 c 1.1,0.5 2.8,0.5 3.8,0 l 8.3,-3.8 4.3,2 c 1.1,0.5 1.1,1.3 0,1.7 l -12.5,5.8 c -1.2,0.5 -2.9,0.5 -4,0 z"
+         id="path2-6"
+         style="clip-rule:evenodd;fill:#95c038;fill-rule:evenodd" />
+      <path
+         class="st2"
+         d="m 42.883719,13.689235 -12.5,-5.8000001 c -1.1,-0.5 -1.1,-1.3 0,-1.7 l 12.5,-5.80000002 c 1.1,-0.5 2.8,-0.5 3.8,0 l 12.5,5.80000002 c 1.1,0.5 1.1,1.3 0,1.7 l -12.5,5.8000001 c -1,0.4 -2.7,0.4 -3.8,0 z"
+         id="path3-7"
+         style="clip-rule:evenodd;fill:#5dc0e8;fill-rule:evenodd" />
+    </g>
+  </g>
+</svg>

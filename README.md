@@ -69,24 +69,37 @@ Retrieve and download files and folders from your OnlyOffice instance
 ## Usage Examples
 
 ### List Files in My Documents
-1. Add the OnlyOffice node to your workflow
-2. Set **Resource** to "File"
+1. Add the **OnlyOffice Read** node to your workflow
+2. Set **Resource** to "File" or "Folder"
 3. Set **Operation** to "List"
 4. Set **Folder ID** to `@my` (for My Documents) or `@common` (for Common Documents)
 
+### Get File Contents
+1. Add the **OnlyOffice Read** node to your workflow
+2. Set **Resource** to "File"
+3. Set **Operation** to "Get"
+4. Set **Item ID** to the ID of the file you want to download (obtained from a List operation)
+5. Choose **Output Format**:
+   - **Original Format**: Download the file in its original format (.docx, .xlsx, .pptx, etc.)
+   - **PDF**: Convert and download as PDF
+6. Set **Binary Property** name (default: `data`) - this is where the file data will be stored
+7. The file will be available as binary data in subsequent nodes
+
 ### Create a New Document
-1. Set **Resource** to "File"
-2. Set **Operation** to "Create"
-3. Set **Parent Folder ID** to `@my`
-4. Set **Title** to your desired filename (without extension)
-5. Choose **File Type** (Document, Spreadsheet, or Presentation)
+1. Add the **OnlyOffice Organize** node to your workflow
+2. Set **Resource** to "File"
+3. Set **Operation** to "Create"
+4. Set **Parent Folder ID** to `@my`
+5. Set **Title** to your desired filename (without extension)
+6. Choose **File Type** (Document, Spreadsheet, or Presentation)
 
 ### Move a File
-1. Set **Resource** to "File"
-2. Set **Operation** to "Move"
-3. Set **Item ID** to the ID of the file to move
-4. Set **Destination Folder ID** to the target folder ID
-5. Choose **Conflict Resolution** strategy
+1. Add the **OnlyOffice Organize** node to your workflow
+2. Set **Resource** to "File"
+3. Set **Operation** to "Move"
+4. Set **Item ID** to the ID of the file to move
+5. Set **Destination Folder ID** to the target folder ID
+6. Choose **Conflict Resolution** strategy
 
 ### Using the Webhook Trigger
 1. Add the **OnlyOffice Trigger** node to your workflow
@@ -121,6 +134,8 @@ When moving or copying files/folders, you can choose how to handle conflicts:
 
 This node uses the OnlyOffice Document Server API v2.0:
 - `GET /api/2.0/files/{folderId}` - List folder contents
+- `GET /api/2.0/files/file/{fileId}` - Get file metadata
+- `GET /api/2.0/files/file/{fileId}/presigned` - Get presigned URL for file download
 - `POST /api/2.0/files/folder/{parentFolderId}` - Create folder
 - `POST /api/2.0/files/{parentFolderId}/file` - Create file
 - `PUT /api/2.0/files/folder/{itemId}` - Rename folder
@@ -129,6 +144,7 @@ This node uses the OnlyOffice Document Server API v2.0:
 - `PUT /api/2.0/files/fileops/copy` - Copy items
 - `DELETE /api/2.0/files/folder/{itemId}` - Delete folder
 - `DELETE /api/2.0/files/file/{itemId}` - Delete file
+- `GET /api/2.0/keys/permissions` - Get API key permissions
 - `GET /api/2.0/settings/webhook` - List webhooks
 - `POST /api/2.0/settings/webhook` - Create webhook
 - `DELETE /api/2.0/settings/webhook/{webhookId}` - Delete webhook
@@ -214,8 +230,10 @@ npm run lintfix
 
 ```
 nodes/OnlyOffice/
-├── OnlyOffice.node.ts              # Main node for file/folder operations
+├── OnlyOfficeRead.node.ts          # Read operations (list, get, permissions)
+├── onlyOfficeOrganize.node.ts      # Write operations (create, rename, move, copy, delete)
 ├── OnlyOfficeTrigger.node.ts       # Webhook trigger node
+├── OnlyOfficePermissions.helper.ts # Permission checking utilities
 ├── OnlyOfficeWebhook.types.ts      # TypeScript types and validation utilities
 └── onlyoffice.svg                  # Node icon
 ```
